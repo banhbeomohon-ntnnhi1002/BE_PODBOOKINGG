@@ -1,49 +1,37 @@
-from flask import Flask, jsonify
-from api.swagger import spec
-from api.controllers.todo_controller import bp as todo_bp
-from api.middleware import middleware
-from api.responses import success_response
-from infrastructure.databases import init_db
-from config import Config
-from flasgger import Swagger
-from config import SwaggerConfig
-from flask_swagger_ui import get_swaggerui_blueprint
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from flask import Flask, jsonify
+from api.controllers.todo_controller import bp as todo_bp
+from api.controllers.rating_controller import bp as rating_bp
+from infrastructure.databases import init_db
 
 def create_app():
     app = Flask(__name__)
-    Swagger(app)
-    # Đăng ký blueprint trước
-    app.register_blueprint(todo_bp)
-
-     # Thêm Swagger UI blueprint
-    SWAGGER_URL = '/docs'
-    API_URL = '/swagger.json'
-    swaggerui_blueprint = get_swaggerui_blueprint(
-        SWAGGER_URL,
-        API_URL,
-        config={'app_name': "Todo API"}
-    )
-    app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
-
+    
+    # Initialize database
     init_db(app)
+    
+    # Register blueprints
+    app.register_blueprint(todo_bp)
+    app.register_blueprint(rating_bp)
 
-    # Register middleware
-    middleware(app)
+    @app.route("/")
+    def home():
+        return jsonify({
+            "message": "POD Booking API",
+            "status": "working",
+            "endpoints": {
+                "todos": "/todos/",
+                "ratings": "/ratings/",
+                "test": "/test"
+            }
+        })
 
-    # Register routes
-    # Example: app.add_url_rule('/example', view_func=example_view)
-    # Tự động quét tất cả các route đã đăng ký
-    with app.test_request_context():
-        for rule in app.url_map.iter_rules():
-            if rule.endpoint.startswith('todo.'):
-                view_func = app.view_functions[rule.endpoint]
-                print(f"Adding path: {rule.rule} -> {view_func}")
-                spec.path(view=view_func)
-
-    @app.route("/swagger.json")
-    def swagger_json():
-        return jsonify(spec.to_dict())
+    @app.route("/test")
+    def test():
+        return jsonify({"message": "API is working!"})
 
     return app
 
